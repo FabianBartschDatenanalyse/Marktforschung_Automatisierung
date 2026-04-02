@@ -1,0 +1,12 @@
+# Governance policy for manual overrides
+roles:
+  editor:
+    can_override: false
+  lead:
+    can_override: true
+
+override:
+  reason_min_chars: 12
+  allowed_from_decisions:
+    - REVIEW
+    - REJECT
