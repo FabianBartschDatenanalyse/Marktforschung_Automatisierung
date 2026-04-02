@@ -1,0 +1,10 @@
+{
+  "decision": "REVIEW",
+  "reason": "1 WARNING über Schwellwert 0",
+  "counts": {
+    "blockers": 0,
+    "warnings": 1,
+    "hints": 1
+  },
+  "score": 87
+}
