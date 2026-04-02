@@ -1,0 +1,42 @@
+{
+  "num_cases": 24,
+  "accuracy": 0.958,
+  "macro_f1": 0.961,
+  "confusion_matrix": {
+    "PASS": {
+      "PASS": 8,
+      "REVIEW": 1,
+      "REJECT": 0
+    },
+    "REVIEW": {
+      "PASS": 0,
+      "REVIEW": 8,
+      "REJECT": 0
+    },
+    "REJECT": {
+      "PASS": 0,
+      "REVIEW": 0,
+      "REJECT": 7
+    }
+  },
+  "per_label": {
+    "PASS": {
+      "precision": 1.0,
+      "recall": 0.889,
+      "f1": 0.941,
+      "support": 9
+    },
+    "REVIEW": {
+      "precision": 0.889,
+      "recall": 1.0,
+      "f1": 0.941,
+      "support": 8
+    },
+    "REJECT": {
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1": 1.0,
+      "support": 7
+    }
+  }
+}
