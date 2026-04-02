@@ -1,33 +1,54 @@
-# Marktforschung_Automatisierung – Governance & Pilot Evaluation (Schritt 7 + 8)
+# AI-Fragebogen-Checker (Produktdokumentation)
 
-Dieses Repository enthält zwei zentrale Bausteine für den QA-/Freigabeprozess von Fragebögen:
+## Was ist dieses Produkt?
 
-1. **Governance-Layer (Schritt 7)**
-   - Rollenbasierte Overrides (`editor` / `lead`)
-   - Pflichtbegründung für Overrides
-   - Revisionssicheres Audit-Logging
-2. **Pilot-Evaluation (Schritt 8)**
-   - Vergleich von automatischen Gate-Entscheidungen gegen Expert:innen-Labels
-   - Kennzahlen (Accuracy, Macro-F1, Precision/Recall/F1)
-   - Reports als JSON + Markdown
+Der **AI-Fragebogen-Checker** ist ein einsatzbereites Prüf- und Freigabesystem für von KI erstellte Fragebögen.
+
+Ziel: Du gibst einen erzeugten Fragebogen in den Prüfprozess, und das System liefert:
+
+1. eine **Gate-Entscheidung** (`PASS`, `REVIEW`, `REJECT`),
+2. bei Bedarf einen **kontrollierten Override** (nur für berechtigte Rollen),
+3. einen **vollständigen Audit-Trail** für Governance und Nachvollziehbarkeit,
+4. sowie ein **Kalibrierungs-Setup** (Pilot-Evaluation), um die Qualität des Systems mit Expert:innen-Urteilen zu messen und zu verbessern.
 
 ---
 
-## Inhaltsverzeichnis
+## Für wen ist das gedacht?
 
-- [Projektstruktur](#projektstruktur)
-- [Voraussetzungen](#voraussetzungen)
-- [Schnellstart](#schnellstart)
-- [Governance (Schritt 7)](#governance-schritt-7)
-  - [Policy](#policy)
-  - [Override CLI – genaue Bedienung](#override-cli--genaue-bedienung)
-  - [Audit-Log](#audit-log)
-- [Pilot Evaluation (Schritt 8)](#pilot-evaluation-schritt-8)
-  - [Datensatzformat](#datensatzformat)
-  - [Pilot Runner – genaue Bedienung](#pilot-runner--genaue-bedienung)
-  - [Interpretation der Ergebnisse](#interpretation-der-ergebnisse)
-- [Tests](#tests)
-- [Fehlerbehebung](#fehlerbehebung)
+- Research Ops / Marktforschungsteams
+- Projektleitungen mit Freigabeverantwortung
+- QA-Verantwortliche, die AI-generierte Fragebögen sicher ins Feld bringen möchten
+
+---
+
+## Ergebnis für den Alltag
+
+Wenn du heute einen AI-generierten Fragebogen prüfen willst, bekommst du mit diesem Produkt:
+
+- einen standardisierten Entscheidungsprozess statt Bauchgefühl,
+- dokumentierte Freigaben/Overrides mit Begründung,
+- reproduzierbare Qualität über Projekte hinweg,
+- eine Basis für kontinuierliche Verbesserung (Pilot + Tuning).
+
+---
+
+## Produktumfang (fertiger Betriebsablauf)
+
+### 1) Gate-Entscheidung liegt vor
+
+Das System arbeitet mit einer Gate-Datei (z. B. aus deinem QA-Layer), in der die Entscheidung und Qualitätsindikatoren stehen, z. B. `examples/gate_decision.json`.
+
+### 2) Manuelle Freigabe nur kontrolliert
+
+Falls nötig, kann ein manueller Override durchgeführt werden – **rollenbasiert**, **mit Pflichtbegründung**, **auditierbar**.
+
+### 3) Audit-Log wird automatisch geschrieben
+
+Jede manuelle Änderung wird als Event in einer JSONL-Datei dokumentiert (`before`/`after`, User, Rolle, Grund, Zeitstempel).
+
+### 4) Qualitätskalibrierung über Pilot
+
+Mit dem Pilot-Runner vergleichst du automatische Entscheidungen mit Expert:innen-Labels und misst Accuracy/F1/Confusion-Matrix.
 
 ---
 
@@ -36,14 +57,12 @@ Dieses Repository enthält zwei zentrale Bausteine für den QA-/Freigabeprozess 
 ```text
 .
 ├── governance/
-│   ├── __init__.py
 │   ├── audit_log.py
 │   ├── override.py
 │   └── policy.yaml
 ├── evaluation/
-│   ├── __init__.py
-│   ├── pilot_dataset.jsonl
 │   ├── pilot_runner.py
+│   ├── pilot_dataset.jsonl
 │   ├── results.json
 │   ├── results.md
 │   └── v1.1_tuning_plan.md
@@ -58,37 +77,17 @@ Dieses Repository enthält zwei zentrale Bausteine für den QA-/Freigabeprozess 
 
 ---
 
-## Voraussetzungen
+## Quick Start (so nutzt du das Produkt sofort)
 
-- Python **3.10+**
-- Keine externen Python-Abhängigkeiten notwendig (nur Standardbibliothek)
+## Schritt A – AI-Fragebogen freigeben/prüfen
 
-Empfohlen:
-
-```bash
-python3 --version
-```
-
----
-
-## Schnellstart
-
-### 1) Tests ausführen
+Du startest mit einer vorhandenen Gate-Entscheidung (z. B. aus deinem Prüf-Layer):
 
 ```bash
-python3 -m unittest discover -v
+cat examples/gate_decision.json
 ```
 
-### 2) Pilot-Evaluation neu berechnen
-
-```bash
-python3 evaluation/pilot_runner.py \
-  evaluation/pilot_dataset.jsonl \
-  --json-output evaluation/results.json \
-  --md-output evaluation/results.md
-```
-
-### 3) Override-Durchlauf ausführen
+Wenn `REVIEW` oder `REJECT` vorliegt und du fachlich begründet freigeben willst, nutze den kontrollierten Override:
 
 ```bash
 python3 -m governance.override \
@@ -100,177 +99,133 @@ python3 -m governance.override \
   --output examples/overridden_gate.json
 ```
 
+Danach:
+
+- finale Entscheidung: `examples/overridden_gate.json`
+- Audit-Nachweis: `examples/audit_log.jsonl`
+
 ---
 
-## Governance (Schritt 7)
-
-Der Governance-Layer stellt sicher, dass manuelle Freigaben nachvollziehbar und regelkonform passieren.
-
-### Policy
-
-Die Datei `governance/policy.yaml` steuert:
-
-- welche Rollen overriden dürfen,
-- minimale Länge der Begründung,
-- aus welchen Entscheidungen ein Override erlaubt ist.
-
-Aktuell:
-
-- `editor`: darf **nicht** overriden
-- `lead`: darf overriden
-- Mindestlänge Grund: `12` Zeichen
-- erlaubte Ausgangsentscheidungen: `REVIEW`, `REJECT`
-
-### Override CLI – genaue Bedienung
-
-**Befehl:**
+## Schritt B – Qualität des Checkers kalibrieren (Pilot)
 
 ```bash
-python3 -m governance.override <gate_report.json> \
-  --user <user_id> \
-  --role <editor|lead> \
-  --reason "<begründung>" \
-  --policy governance/policy.yaml \
-  --audit-log <audit_log_path.jsonl> \
-  --output <overridden_gate.json>
+python3 evaluation/pilot_runner.py \
+  evaluation/pilot_dataset.jsonl \
+  --json-output evaluation/results.json \
+  --md-output evaluation/results.md
 ```
 
-#### Parameter im Detail
+Danach findest du:
 
-- `gate_report` (Pflicht): Eingangsentscheidung (JSON), z. B. `REVIEW`.
-- `--user` (Pflicht): technische oder fachliche Kennung der Person.
-- `--role` (Pflicht): Rolle gegen Policy geprüft.
-- `--reason` (Pflicht): Begründungstext, muss Mindestlänge erfüllen.
-- `--policy` (optional): Pfad zur Policy (Default: `governance/policy.yaml`).
-- `--audit-log` (optional): Pfad zur JSONL-Audit-Datei (Default: `examples/audit_log.jsonl`).
-- `--output` (Pflicht): Zielpfad für überschriebenes Gate-JSON.
-
-#### Was passiert bei Erfolg?
-
-1. Rolle wird geprüft.
-2. Ausgangsentscheidung wird gegen Policy geprüft.
-3. Begründung wird geprüft.
-4. Entscheidung wird auf `PASS` gesetzt.
-5. `override`-Metadaten werden angehängt.
-6. Audit-Eintrag wird in JSONL gespeichert.
-
-#### Typische Fehlerfälle
-
-- `PermissionError`: Rolle darf kein Override.
-- `ValueError`: Entscheidung laut Policy nicht überschreibbar.
-- `ValueError`: Begründung zu kurz.
-
-### Audit-Log
-
-Das Audit-Log ist eine JSONL-Datei (eine JSON-Zeile pro Event).
-
-Beispielinhalt (`examples/audit_log.jsonl`):
-
-- `event_type`, `timestamp`, `user`, `role`, `reason`
-- `before`: Zustand vor Override
-- `after`: Zustand nach Override
-
-Damit ist nachvollziehbar: **wer wann warum was geändert hat**.
+- `evaluation/results.json` (maschinenlesbar)
+- `evaluation/results.md` (management-/teamlesbar)
 
 ---
 
-## Pilot Evaluation (Schritt 8)
+## Governance-Regeln (Produktivbetrieb)
 
-Die Pilot-Evaluation vergleicht automatische Entscheidungen mit Expert:innen-Labels.
+In `governance/policy.yaml` wird zentral gesteuert:
 
-### Datensatzformat
+- welche Rollen overriden dürfen,
+- wie lang eine Begründung mindestens sein muss,
+- aus welchen Entscheidungen ein Override erlaubt ist.
 
-`evaluation/pilot_dataset.jsonl` ist JSONL mit einem Fall pro Zeile:
+Aktueller Produktstandard:
+
+- `editor`: kein Override
+- `lead`: Override erlaubt
+- Mindestbegründung: 12 Zeichen
+- erlaubte Ausgangsentscheidungen: `REVIEW`, `REJECT`
+
+---
+
+## Datenformate
+
+## Gate-Datei (Input für Governance)
+
+Beispiel:
+
+```json
+{
+  "decision": "REVIEW",
+  "reason": "1 WARNING über Schwellwert 0",
+  "counts": {
+    "blockers": 0,
+    "warnings": 1,
+    "hints": 1
+  },
+  "score": 87
+}
+```
+
+## Audit-Event (JSONL)
+
+Pro Zeile ein Event mit:
+
+- `event_type`, `timestamp`, `user`, `role`, `reason`
+- `before` (vor Override)
+- `after` (nach Override)
+
+## Pilot-Datensatz (JSONL)
+
+Pro Fall:
 
 ```json
 {"questionnaire_id":"QNR-001","blockers":1,"warnings":0,"expert_decision":"REJECT"}
 ```
 
-Pflichtfelder:
+---
 
-- `questionnaire_id` (string)
-- `blockers` (int)
-- `warnings` (int)
-- `expert_decision` (`PASS|REVIEW|REJECT`)
+## KPI-Interpretation (Pilot)
 
-### Pilot Runner – genaue Bedienung
+- **Accuracy**: Wie oft das System insgesamt richtig liegt.
+- **Macro-F1**: Balance über alle Klassen (`PASS`, `REVIEW`, `REJECT`).
+- **Recall(REJECT)**: Kritisch, damit riskante Fragebögen nicht durchrutschen.
+- **Precision(REVIEW)**: Wichtig zur Reduktion unnötiger manueller Nacharbeit.
 
-**Befehl:**
+---
 
-```bash
-python3 evaluation/pilot_runner.py <dataset.jsonl> \
-  --json-output <results.json> \
-  --md-output <results.md>
-```
+## Betriebsempfehlung
 
-#### Entscheidungslogik (Baseline)
-
-- `blockers > 0` ⇒ `REJECT`
-- sonst `warnings > 0` ⇒ `REVIEW`
-- sonst ⇒ `PASS`
-
-#### Output-Dateien
-
-1. `results.json`
-   - `num_cases`, `accuracy`, `macro_f1`
-   - `confusion_matrix`
-   - `per_label` (Precision/Recall/F1/Support)
-2. `results.md`
-   - gleiche Kennzahlen in lesbarer Tabellenform
-
-### Interpretation der Ergebnisse
-
-- **Accuracy**: Gesamtanteil korrekter Entscheidungen.
-- **Macro-F1**: mittlere F1 über alle Klassen (gleiches Gewicht pro Klasse).
-- **Per-Label Recall**: wichtig für `REJECT` (kritische Fälle nicht verpassen).
-- **Per-Label Precision**: wichtig für `REVIEW` (False Positives reduzieren).
-
-Empfohlene Folgearbeit ist in `evaluation/v1.1_tuning_plan.md` dokumentiert.
+1. AI-Fragebogen erzeugen lassen.
+2. QA-Layer erzeugt Gate-Entscheidung.
+3. Bei `PASS`: direkt freigeben.
+4. Bei `REVIEW`/`REJECT`: fachliche Prüfung + ggf. Override durch `lead`.
+5. Audit-Log revisionssicher speichern.
+6. Monatlich Pilot-/Kalibrierungskennzahlen aktualisieren.
 
 ---
 
 ## Tests
 
-### Alle Tests
-
 ```bash
-python3 -m unittest discover -v
-```
-
-### Nur Governance
-
-```bash
-python3 -m unittest -v tests/test_governance.py
-```
-
-### Nur Pilot Runner
-
-```bash
-python3 -m unittest -v tests/test_pilot_runner.py
+python3 -m unittest -v tests/test_governance.py tests/test_pilot_runner.py
 ```
 
 ---
 
 ## Fehlerbehebung
 
-### `ModuleNotFoundError` bei CLI-Aufruf
+### Rolle darf nicht overriden
 
-- Stelle sicher, dass der Aufruf im Repo-Root erfolgt.
-- Alternativ Modul-Aufruf nutzen (`python3 -m governance.override ...`).
+- Prüfe `--role` und `governance/policy.yaml`.
 
-### Keine Einträge im Audit-Log
+### Override wird wegen Begründung abgelehnt
 
-- Prüfe den `--audit-log` Pfad.
-- Prüfe Schreibrechte auf Zielordner.
+- Begründung verlängern (Policy `reason_min_chars`).
 
-### Unerwartete Metriken
+### Keine Audit-Einträge sichtbar
 
-- Prüfe `expert_decision` Schreibweise (`PASS|REVIEW|REJECT`).
-- Prüfe, ob `blockers`/`warnings` numerisch sind.
+- `--audit-log` Pfad prüfen.
+- Dateirechte/Zielordner prüfen.
+
+### Pilot-Ergebnisse wirken unplausibel
+
+- Datensatz auf korrekte Labels (`PASS|REVIEW|REJECT`) prüfen.
+- Sicherstellen, dass `blockers`/`warnings` numerisch sind.
 
 ---
 
-## Hinweise
+## Release-Status
 
-- `evaluation/results.json` und `evaluation/results.md` sind reproduzierbare Ergebnisartefakte.
-- Für produktiven Einsatz sollten Datensätze aus echten Historienfällen gepflegt und versioniert werden.
+✅ Dieses Repository beschreibt und implementiert den **produktiven Betriebsablauf für Governance + Pilot-Kalibrierung** zur Überprüfung AI-generierter Fragebögen.
