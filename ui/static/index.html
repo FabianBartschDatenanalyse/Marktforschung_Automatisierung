@@ -1,0 +1,105 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>AI-Fragebogen-Checker UI</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 24px; max-width: 960px; }
+    .card { border: 1px solid #ddd; border-radius: 8px; padding: 16px; margin-bottom: 16px; }
+    label { display:block; margin-top:8px; }
+    input, select, textarea, button { margin-top:4px; padding:8px; width:100%; }
+    button { width:auto; cursor:pointer; }
+    pre { background:#f7f7f7; padding:12px; overflow:auto; }
+    .row { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+  </style>
+</head>
+<body>
+  <h1>AI-Fragebogen-Checker</h1>
+  <p>Benutzeroberfläche für Gate-Entscheidung, Override und Pilot-Evaluation.</p>
+
+  <div class="card">
+    <h2>1) Gate berechnen</h2>
+    <div class="row">
+      <div>
+        <label>Blocker</label>
+        <input id="blockers" type="number" min="0" value="0" />
+      </div>
+      <div>
+        <label>Warnings</label>
+        <input id="warnings" type="number" min="0" value="1" />
+      </div>
+    </div>
+    <button onclick="createGate()">Gate erzeugen</button>
+    <pre id="gateOut">Noch kein Ergebnis</pre>
+  </div>
+
+  <div class="card">
+    <h2>2) Override durchführen</h2>
+    <label>User</label>
+    <input id="user" value="lead_anna" />
+    <label>Rolle</label>
+    <select id="role"><option>lead</option><option>editor</option></select>
+    <label>Begründung</label>
+    <textarea id="reason">Methodisch akzeptabel nach Teamreview und dokumentierter Abwägung.</textarea>
+    <button onclick="overrideGate()">Override ausführen</button>
+    <pre id="overrideOut">Noch kein Ergebnis</pre>
+  </div>
+
+  <div class="card">
+    <h2>3) Pilot-Evaluation laufen lassen</h2>
+    <button onclick="runPilot()">Pilot ausführen</button>
+    <pre id="pilotOut">Noch kein Ergebnis</pre>
+  </div>
+
+  <div class="card">
+    <h2>4) Audit-Log ansehen</h2>
+    <button onclick="loadAudit()">Audit laden</button>
+    <pre id="auditOut">Noch kein Ergebnis</pre>
+  </div>
+
+<script>
+  let currentGate = null;
+
+  async function createGate() {
+    const res = await fetch('/api/gate', {
+      method: 'POST', headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({
+        blockers: Number(document.getElementById('blockers').value),
+        warnings: Number(document.getElementById('warnings').value)
+      })
+    });
+    const data = await res.json();
+    currentGate = data.gate;
+    document.getElementById('gateOut').textContent = JSON.stringify(data, null, 2);
+  }
+
+  async function overrideGate() {
+    if (!currentGate) { alert('Bitte zuerst Gate erzeugen.'); return; }
+    const res = await fetch('/api/override', {
+      method: 'POST', headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({
+        gate_report: currentGate,
+        user: document.getElementById('user').value,
+        role: document.getElementById('role').value,
+        reason: document.getElementById('reason').value
+      })
+    });
+    const data = await res.json();
+    document.getElementById('overrideOut').textContent = JSON.stringify(data, null, 2);
+  }
+
+  async function runPilot() {
+    const res = await fetch('/api/pilot', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: '{}' });
+    const data = await res.json();
+    document.getElementById('pilotOut').textContent = JSON.stringify(data, null, 2);
+  }
+
+  async function loadAudit() {
+    const res = await fetch('/api/audit');
+    const data = await res.json();
+    document.getElementById('auditOut').textContent = JSON.stringify(data, null, 2);
+  }
+</script>
+</body>
+</html>

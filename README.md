@@ -229,3 +229,150 @@ python3 -m unittest -v tests/test_governance.py tests/test_pilot_runner.py
 ## Release-Status
 
 ✅ Dieses Repository beschreibt und implementiert den **produktiven Betriebsablauf für Governance + Pilot-Kalibrierung** zur Überprüfung AI-generierter Fragebögen.
+
+---
+
+## Web-Benutzeroberfläche (neu)
+
+Du kannst das Produkt jetzt auch über eine einfache Weboberfläche nutzen.
+
+### Starten
+
+```bash
+python3 -m ui.app
+```
+
+Dann im Browser öffnen:
+
+- `http://127.0.0.1:8080`
+
+### Funktionen in der UI
+
+1. **Gate berechnen** aus `blockers`/`warnings`
+2. **Override durchführen** (inkl. Rollenprüfung und Audit-Log)
+3. **Pilot-Evaluation starten** (schreibt `evaluation/results.json` und `evaluation/results.md`)
+4. **Audit-Log anzeigen**
+
+Die UI nutzt intern dieselben Governance- und Evaluation-Funktionen wie die CLI.
+
+---
+
+## Detaillierte UI-Bedienanleitung (Schritt für Schritt)
+
+Diese Anleitung beschreibt die Nutzung der Oberfläche genau so, wie du sie im Alltag brauchst.
+
+### 0) UI starten
+
+```bash
+python3 -m ui.app
+```
+
+Wenn im Terminal `UI running on http://127.0.0.1:8080` erscheint, öffne im Browser:
+
+- `http://127.0.0.1:8080`
+
+### 1) Bereich „Gate berechnen“
+
+**Wo?** Karte 1 in der UI (`1) Gate berechnen`)
+
+**Was eingeben?**
+
+- `Blocker` = Anzahl harter Fehler
+- `Warnings` = Anzahl relevanter Warnungen
+
+**Aktion:** Button `Gate erzeugen` klicken.
+
+**Erwartetes Ergebnis im Feld unten:**
+
+- JSON mit `decision` (`PASS`/`REVIEW`/`REJECT`)
+- `reason`
+- `counts`
+- `score`
+
+**Logik:**
+
+- `blockers > 0` → `REJECT`
+- sonst `warnings > 0` → `REVIEW`
+- sonst → `PASS`
+
+### 2) Bereich „Override durchführen“
+
+**Wo?** Karte 2 (`2) Override durchführen`)
+
+**Voraussetzung:** Du musst zuvor ein Gate erzeugt haben (Schritt 1).
+
+**Felder:**
+
+- `User` (z. B. `lead_anna`)
+- `Rolle` (`lead` oder `editor`)
+- `Begründung` (muss lang genug sein laut Policy)
+
+**Aktion:** Button `Override ausführen` klicken.
+
+**Erwartetes Ergebnis:**
+
+- Bei erlaubtem Override: `decision` wird `PASS`, inklusive `override`-Block mit Zeitstempel.
+- Bei nicht erlaubtem Override: Fehlermeldung im JSON (`error`).
+
+**Wichtig:**
+
+- `lead` darf overriden, `editor` standardmäßig nicht.
+- Die Regeln kommen aus `governance/policy.yaml`.
+
+### 3) Bereich „Pilot-Evaluation laufen lassen“
+
+**Wo?** Karte 3 (`3) Pilot-Evaluation laufen lassen`)
+
+**Aktion:** Button `Pilot ausführen` klicken.
+
+**Ergebnis:**
+
+- UI zeigt Kennzahlen (`accuracy`, `macro_f1`, Confusion Matrix) an.
+- Dateien werden aktualisiert:
+  - `evaluation/results.json`
+  - `evaluation/results.md`
+
+### 4) Bereich „Audit-Log ansehen“
+
+**Wo?** Karte 4 (`4) Audit-Log ansehen`)
+
+**Aktion:** Button `Audit laden` klicken.
+
+**Ergebnis:**
+
+- Du siehst alle bisherigen Override-Events aus `examples/audit_log.jsonl`.
+- Jedes Event enthält `before`/`after`, User, Rolle, Grund und Zeitstempel.
+
+---
+
+## Typischer Arbeitsablauf in der UI (Praxis)
+
+1. Blocker/Warnings aus deinem Fragebogen-Check eintragen.
+2. Gate erzeugen.
+3. Falls `REVIEW`/`REJECT`: fachliche Entscheidung treffen.
+4. Falls Freigabe nötig: Override mit `lead` + Begründung durchführen.
+5. Audit-Log öffnen und dokumentierte Änderung prüfen.
+6. Optional Pilot ausführen, um Systemqualität zu monitoren.
+
+---
+
+## UI-Fehlerbilder und schnelle Lösung
+
+### „Bitte zuerst Gate erzeugen.“
+
+- Du hast Override geklickt, ohne vorher Schritt 1 auszuführen.
+
+### Override gibt `error` zurück
+
+- Rolle/Policy prüfen (`governance/policy.yaml`).
+- Begründung verlängern.
+
+### Audit-Liste ist leer
+
+- Noch kein erfolgreicher Override durchgeführt.
+- Oder falscher Audit-Pfad konfiguriert.
+
+### UI lädt nicht
+
+- Prüfen, ob der Server wirklich läuft (`python3 -m ui.app`).
+- Port-Konflikt? Dann `ui.app` mit anderem Port starten (Code in `ui/app.py` anpassen oder `run()` direkt mit anderem Port aufrufen).
